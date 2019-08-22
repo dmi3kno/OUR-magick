@@ -1,0 +1,331 @@
+---
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    seal: false
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+
+---
+background-image: url(img/animated_plot.gif)
+background-size: contain
+background-position: left
+
+![mg](img/magick_title.png)
+.right[
+## Dmytro Perepolkin
+### Oslo UseR! Meetup
+### 21 August 2019
+`r icon::fa("github")` [dmi3kno](https://github.com/dmi3kno)
+`r icon::fa("twitter")` [dmi3k](https://twitter.com/dmi3k)
+<br>
+<img src="img/300_481807005.png" width="200px"/>
+]
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+```
+
+```{r, echo=FALSE, message=FALSE, error=FALSE}
+library(tidyverse)
+library(hrbrthemes)
+library(gganimate)
+```
+---
+class: inverse, center, middle
+
+# <code>gganimate</code> 
+
+---
+background-image: url(https://raw.githubusercontent.com/thomasp85/gganimate/master/man/figures/logo.png)
+background-position: 90% 8%
+
+# Grammar of animation
+
+Awesome package rebooted by [Thomas Lin Pedersen](https://twitter.com/thomasp85). Learn more on [gganimate.com](https://gganimate.com/)
+
+```{r eval=FALSE, tidy=FALSE}
+install.packages("gganimate")
+# or
+remotes::install_github("thomas85/gganimate")
+```
+
+--
+Meet the new grammar:
+
++ `transition` - defines how layer data changes with time
++ `view` - defines pannning and zooming
++ `shadow` - defines how data from past (or future) frames is displayed
++ `enter/exit` - defines how data appears/disappears
++ `ease_aes` - defines how aestetics is interpolated between data values
+
+Addition to `ggplot2` not wrapper over it. Lots of examples to copy from!
+
+.footnote[
+[1] DataNovia [blog post](https://www.datanovia.com/en/blog/gganimate-how-to-create-plots-with-beautiful-animation-in-r/)
+
+[2] ROpenSci ozunconf project [learngganimate](https://github.com/ropenscilabs/learngganimate).
+]
+
+---
+## `transition_reveal()`
+
+.pull-left[
+```{r plot-last, fig.show='hide'}
+ggplot(airquality,
+       aes(x=Day, y=Temp, group=Month, 
+           color=factor(Month)))+
+  geom_line()+
+  geom_point()+
+  theme_ipsum_rc()+
+  scale_color_ipsum()+
+  labs(x="Day of Month", y="Temperature")+
+  transition_reveal(Day) #<<
+```
+
+This can be useful for showing trends over time, when you need to emphasize direction
+
+]
+
+.pull-right[
+```{r ref.label='plot-last', echo=FALSE}
+```
+]
+
+---
+
+## `transition_time()`
+
+.pull-left[
+
+```{r plot-second, echo=FALSE}
+library(gapminder)
+
+ggplot(gapminder, aes(gdpPercap, lifeExp, 
+                      size = pop, 
+                      colour = country)) +
+  geom_point(alpha = 0.7, 
+             show.legend = FALSE) +
+  scale_colour_manual(values=country_colors)+
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  theme_ipsum_rc() +
+  labs(title = 'Year: {frame_time}', #<<
+       x = 'GDP per capita', 
+       y = 'life expectancy') +
+  transition_time(year) + #<<
+  ease_aes('linear') #<<
+```
+]
+
+.pull-right[
+```{r ref.label='plot-second', eval=FALSE}
+```
+]
+---
+# Other examples
+.pull-left[
+![usmap](https://raw.githubusercontent.com/ropenscilabs/learngganimate/master/USflights_files/figure-markdown_github/unnamed-chunk-3-1.gif)
+In this example: `shadow_wake()`, `enter_fade()`, `exit_shrink()` and `transition_reveal()`.
+
+Reference: [learngganimate article](https://github.com/ropenscilabs/learngganimate/blob/master/USflights.md) on github
+]
+
+.pull-right[
+![usmap](https://raw.githubusercontent.com/mjskay/uncertainty-examples/master/mtcars_files/figure-gfm/unnamed-chunk-6-1.gif)
+In this example: `transition_manual()` or `transition_states()`
+
+References: [Uncertainty Examples repo](https://github.com/mjskay/uncertainty-examples) on `github.com/mjskay` (author of `tidybayes`) and [ungevis](https://github.com/wilkelab/ungeviz) by Claus Wilke
+]
+---
+class: inverse, center, middle
+
+# <code>memes</code> 
+
+---
+
+# Make your own meme
+
+There are a few packages that facilitate making memes (images) in R. Notable mentions:
+
++ `leeper/meme` - [github](https://github.com/leeper/meme) - plots text over images fetched from `memecaptain` using base R. Does not seem to work anymore.
++ `meme` - [CRAN](https://cran.r-project.org/web/packages/meme/) - ggplot2-based package by Guangchuang Yu. Has some [useful functions](https://cran.r-project.org/web/packages/meme/vignettes/meme.html) for working with arbitrary images, fonts and layering memes together with regular ggplot2 plots.
++ `sctyner/memer` - [github](https://github.com/sctyner/memer) - magick-based package for producing memes out of knowyourmeme.com images. 
+
+```{r memechopper, eval=FALSE}
+# remotes::install_github("sctyner/memer")
+library(memer)
+meme_get("AmericanChopper") %>%
+  meme_text_chopper("Stop calling yourself 'just an R user'!",
+                    "But I've never written a package!",
+                    "So?? You're still an important part of the R community!",
+                    "But people who write packages are more important",
+                    "NO! All members of the R community are valued & deserve respect!")
+```
+[Image](https://raw.githubusercontent.com/sctyner/memer/master/README_files/figure-gfm/chopper-1.png)
+---
+
+# How does it work?
+
+Ok, packages using ggplot2 place text using `annotate` or `geom_text()`. How does it work with `magick` and why should I care? It's easy! Just use *gravity*!
+
+```{r image_annotate, fig.show='hide'}
+library(magick)
+tmim <- image_read("https://i.imgflip.com/17pmlb.jpg") %>% image_convert("png")
+tmim_meme <- tmim %>%
+  image_resize("600x600") %>% 
+  image_annotate("I DON'T ALWAYS MAKE MEMES IN R", 
+               gravity = "North", font = "Impact", size=35,
+               color="white", strokecolor = "black") %>% 
+  image_annotate("BUT WHEN I DO, I USE {magick}", 
+               gravity = "South", font = "Impact", size=35,
+               color="white", strokecolor = "black") 
+tmim_meme
+```
+
+```{r, echo=FALSE}
+tmim_meme %>% image_write("img/tmim_meme.png")
+```
+
+[Result](img/tmim_meme.png)
+
+---
+
+# Annotating and composing with gravity
+
+You can "compose" your picture by sequentially "layering" it with graphical objects, images and text. This is useful trick to make memes, hex logos, and github twittercards.
+
+```{r echo=FALSE, fig.show='hide'}
+# install.packages("ggforce")
+library(magick)
+library(bunny)
+p2_clouds <- image_read("img/fantasy-4065903_1920.jpg") %>%  image_convert("png")
+#p2_clouds
+up_hand <- p2_clouds %>% image_crop("1200x900+0+0") %>% 
+  image_convert(colorspace = "Gray") %>% 
+  image_threshold("white", "40%") %>% 
+  image_threshold("black", "30%")
+
+down_hand <- p2_clouds %>% image_crop("1200x1200+750+870") %>% 
+  image_convert(colorspace = "Gray") %>% 
+  image_threshold("white", "40%") %>% 
+  image_threshold("black", "30%")
+
+up_hand <- up_hand %>%
+  image_negate() %>% 
+  image_morphology("Erode", "Diamond") %>% 
+  image_morphology("Smooth", "Disk:1.2") %>% 
+  image_negate() %>% 
+  image_transparent("white", 10) %>% 
+  image_resize(geometry_size_pixels(700), "Lanczos2")
+
+down_hand <- down_hand %>%
+  image_negate() %>% 
+  image_morphology("Erode", "Diamond") %>% 
+  image_morphology("Smooth", "Disk:1.2") %>% 
+  image_negate() %>% 
+  image_transparent("white", 10) %>% 
+  image_resize(geometry_size_pixels(700), "Lanczos2")
+
+up_hand_shadow <- up_hand %>% 
+    image_colorize(50, "grey") %>% 
+    image_blur(20,10)
+
+down_hand_shadow <- down_hand %>% 
+    image_colorize(50, "grey") %>% 
+    image_blur(20,10)
+
+# https://coolors.co/000000-ede6f2-0d4448-c8c8c8-b3b3b3
+hex_canvas <- image_canvas_hex(border_color="#0d4448", border_size = 2, fill_color = "#ede6f2")
+hex_border <- image_canvas_hexborder(border_color="#0d4448", border_size = 4)
+```
+
+```{r, fig.show='hide'}
+img_hex <- hex_canvas %>% 
+  magick::image_composite(up_hand_shadow, offset="+40+460", gravity = "northwest")%>% 
+  magick::image_composite(down_hand_shadow, offset="+30+390", gravity = "southeast")%>% 
+  magick::image_composite(up_hand, offset="+20+440", gravity = "northwest")%>% 
+  magick::image_composite(down_hand, offset="+20+380", gravity = "southeast")%>% 
+  magick::image_annotate("bbox", size=450, gravity = "center", font = "Aller", color = "#0d4448") %>% 
+  magick::image_composite(hex_border, gravity = "center", operator = "Over")
+img_hex
+```
+
+```{r, echo=FALSE}
+img_hex %>% image_write("img/bbox_hex.png")
+```
+[Result](img/bbox_hex.png)
+---
+
+# Tell me about the fingers!
+
+Fingers on the hex logo come from [this](img/fantasy-4065903_1920.jpg) picture. So how did you get rid of the background?
+
+There are many ways of doing it, but in the simple instances you can do one of the following:
+
++ If a picture has a "known" color you can just "declare it" transparent with e.g. `magick::image_transparent("red")`. This will replace color everywhere on the picture.
++ If a picture has a contiguous region with roughtly the same color, you can "flood-fill" it with `image_fill()` and then declare that color transparent. This will replace color in a single contiguous region.
+
+See [Miracles with magick and bunny](https://www.ddrive.no/post/miracles-with-magick-and-bunny/) for details.
+
+There's more to learn about masks and transparency. Check out the second part of the blogpost, where I tried to make a mask for making the rabbit disappear from the magician's picture.
+
+---
+class: inverse, center, middle
+
+# Rip mask off
+
+---
+
+# Magick and animation
+
+So how did you make the title slide to the presentation? Inspired by [this post](https://www.danielphadley.com/ggplot-logo/)
+
+```{r titleslidecode, eval=FALSE}
+library(magick)
+library(tidyverse)
+
+mpg %>% 
+  ggplot()+
+  geom_point(aes(x=displ, y=hwy, color=class))+
+  labs(title="Cars")
+
+ggsave("img/mpg_plot.png", width = 7, height = 7, dpi=150)
+
+plot_img <- image_read("img/mpg_plot.png")
+
+travolta_ims <- image_read("https://i.imgur.com/e1IneGq.jpg") 
+
+frames <- lapply(travolta_ims, function(frame) {
+  image_composite(plot_img, frame, gravity = "SouthWest", offset = "+100+0")
+})
+
+Reduce(c, frames) %>% 
+  image_animate() %>% 
+  image_write_gif("img/animated_plot.gif", delay=0.1, progress=FALSE)
+```
+
+---
+class: inverse, center, middle
+
+# GIF remix demo
+
+---
+# animate gganimate
+
+You can "decompose" gganimate animations the same way, manipulate frames as images and stitch together to make a new gif. Here's animated logo for `gapminder` package. Check out [blogpost](https://www.ddrive.no/post/gganimate-your-hex/) to learn how to do this.
+
+![twittercard](https://www.ddrive.no/post/2019-08-06-gganimate-your-hex_files/animated_card.gif)
+
+---
+
+class: center, middle
+
+# Thanks!
+
+Slides created via the R package [**xaringan**](https://github.com/yihui/xaringan).
+
+The chakra comes from [remark.js](https://remarkjs.com), [**knitr**](http://yihui.name/knitr), and [R Markdown](https://rmarkdown.rstudio.com).
